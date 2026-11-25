@@ -1,0 +1,16 @@
+Sortie de ProVerif (outil en ligne) pour models/flawed_protocol.pv
+Version de ProVerif : non indiquée par l'outil en ligne (à compléter si elle apparaît)
+
+Query not attacker(s[]) in process 1.
+goal reachable: attacker(s[])
+RESULT not attacker(s[]) is false.
+
+Query event(ClientAccept(p,k_2)) ==> event(ServerSend(p,k_2)) in process 1.
+goal reachable: b-event(ServerSend(pk(sk),k_2)) && attacker(sk) -> event(ClientAccept(pk(skA[]),k_2))
+Abbreviations:
+k_2 = k_1[pkX = pk(sk),!1 = @sid]
+RESULT event(ClientAccept(p,k_2)) ==> event(ServerSend(p,k_2)) is false.
+
+Verification summary:
+Query not attacker(s[]) is false.
+Query event(ClientAccept(p,k_2)) ==> event(ServerSend(p,k_2)) is false.

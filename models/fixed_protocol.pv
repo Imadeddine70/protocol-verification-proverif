@@ -1,0 +1,72 @@
+(* Même protocole  -  VERSION CORRIGEE
+ *
+ *   A -> B : pk(skA)
+ *   B -> A : aenc(sign((pk(skA), pk(skB), k), skB), pk(skA))
+ *   A -> B : senc(s, k)
+ *
+ * Correction : la signature de B contient l'identité du client visé, et A vérifie que cette
+ * identité est la sienne. Il faut modifier les DEUX côtés : si seul le serveur change, le client
+ * n'accepte plus aucun message, la requête "not attacker(s)" devient vraie pour une mauvaise
+ * raison (voir la requête d'accessibilité ci-dessous, qui détecte ce cas).
+ *
+ * Lancer :  proverif models/fixed_protocol.pv
+ *)
+
+type key.
+fun senc(bitstring, key): bitstring.
+reduc forall m: bitstring, k: key; sdec(senc(m,k),k) = m.
+
+type skey.
+type pkey.
+fun pk(skey): pkey.
+fun aenc(bitstring, pkey): bitstring.
+reduc forall m: bitstring, sk: skey; adec(aenc(m,pk(sk)),sk) = m.
+
+type sskey.
+type spkey.
+fun spk(sskey): spkey.
+fun sign(bitstring, sskey): bitstring.
+reduc forall m: bitstring, ssk: sskey; getmess(sign(m,ssk)) = m.
+reduc forall m: bitstring, ssk: sskey; checksign(sign(m,ssk),spk(ssk)) = m.
+
+free c: channel.
+free s: bitstring [private].
+
+event ServerSend(pkey, key).
+event ClientAccept(pkey, key).
+
+(* 1. Confidentialité du secret s *)
+query attacker(s).
+
+(* 2. Authentification de B auprès de A *)
+query p: pkey, k: key; event(ClientAccept(p,k)) ==> event(ServerSend(p,k)).
+
+(* 3. Contrôle de non-vacuité : le client peut-il aller jusqu'au bout ?
+ *    Ici, ProVerif doit répondre que l'événement EST accessible (résultat "false" pour cette requête).
+ *    Si la réponse était "true", le modèle serait bloqué avant la fin et les résultats 1 et 2
+ *    ne prouveraient rien. *)
+query p: pkey, k: key; event(ClientAccept(p,k)).
+
+let clientA(pkA: pkey, skA: skey, pkB: spkey) =
+    out(c, pkA);
+    in(c, x: bitstring);
+    let y = adec(x, skA) in
+    let (=pkA, =pkB, k: key) = checksign(y, pkB) in
+    event ClientAccept(pkA, k);
+    out(c, senc(s, k)).
+
+let serverB(pkB: spkey, skB: sskey) =
+    in(c, pkX: pkey);
+    new k: key;
+    event ServerSend(pkX, k);
+    out(c, aenc(sign((pkX, pkB, k), skB), pkX));
+    in(c, x: bitstring);
+    let z = sdec(x, k) in
+    0.
+
+process
+    new skA: skey;
+    new skB: sskey;
+    let pkA = pk(skA) in out(c, pkA);
+    let pkB = spk(skB) in out(c, pkB);
+    ( (!clientA(pkA, skA, pkB)) | (!serverB(pkB, skB)) )

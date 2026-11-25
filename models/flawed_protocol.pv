@@ -1,0 +1,70 @@
+(* Protocole d'échange de clé entre un client A et un serveur B  -  VERSION VULNERABLE
+ *
+ *   A -> B : pk(skA)
+ *   B -> A : aenc(sign((pk(skB), k), skB), pk(skA))
+ *   A -> B : senc(s, k)
+ *
+ * Défaut : la signature de B ne contient pas l'identité du client visé. Un intrus I peut
+ * demander une clé à B pour lui-même, puis rejouer ce message à A.
+ *
+ * Reconstitué à partir du modèle du rapport de projet (module Méthodes formelles pour la
+ * sécurité, ESTIN 2023/2024), avec deux requêtes d'authentification ajoutées.
+ * Lancer :  proverif models/flawed_protocol.pv
+ *)
+
+(* Chiffrement symétrique *)
+type key.
+fun senc(bitstring, key): bitstring.
+reduc forall m: bitstring, k: key; sdec(senc(m,k),k) = m.
+
+(* Chiffrement asymétrique *)
+type skey.
+type pkey.
+fun pk(skey): pkey.
+fun aenc(bitstring, pkey): bitstring.
+reduc forall m: bitstring, sk: skey; adec(aenc(m,pk(sk)),sk) = m.
+
+(* Signatures *)
+type sskey.
+type spkey.
+fun spk(sskey): spkey.
+fun sign(bitstring, sskey): bitstring.
+reduc forall m: bitstring, ssk: sskey; getmess(sign(m,ssk)) = m.
+reduc forall m: bitstring, ssk: sskey; checksign(sign(m,ssk),spk(ssk)) = m.
+
+free c: channel.
+free s: bitstring [private].
+
+(* Evénements pour l'authentification *)
+event ServerSend(pkey, key).
+event ClientAccept(pkey, key).
+
+(* 1. Confidentialité du secret s *)
+query attacker(s).
+
+(* 2. Si A accepte la clé k pour sa clé publique p, alors B l'a bien générée pour p *)
+query p: pkey, k: key; event(ClientAccept(p,k)) ==> event(ServerSend(p,k)).
+
+let clientA(pkA: pkey, skA: skey, pkB: spkey) =
+    out(c, pkA);
+    in(c, x: bitstring);
+    let y = adec(x, skA) in
+    let (=pkB, k: key) = checksign(y, pkB) in
+    event ClientAccept(pkA, k);
+    out(c, senc(s, k)).
+
+let serverB(pkB: spkey, skB: sskey) =
+    in(c, pkX: pkey);
+    new k: key;
+    event ServerSend(pkX, k);
+    out(c, aenc(sign((pkB, k), skB), pkX));
+    in(c, x: bitstring);
+    let z = sdec(x, k) in
+    0.
+
+process
+    new skA: skey;
+    new skB: sskey;
+    let pkA = pk(skA) in out(c, pkA);
+    let pkB = spk(skB) in out(c, pkB);
+    ( (!clientA(pkA, skA, pkB)) | (!serverB(pkB, skB)) )

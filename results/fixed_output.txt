@@ -1,0 +1,20 @@
+Sortie de ProVerif (outil en ligne) pour models/fixed_protocol.pv
+Version de ProVerif : non indiquée par l'outil en ligne
+
+Query not attacker(s[]) in process 1.
+RESULT not attacker(s[]) is true.
+
+Query event(ClientAccept(p,k_2)) ==> event(ServerSend(p,k_2)) in process 1.
+goal reachable: b-event(ServerSend(pk(skA[]),k_2)) -> event(ClientAccept(pk(skA[]),k_2))
+Abbreviations:
+k_2 = k_1[pkX = pk(skA[]),!1 = @sid]
+RESULT event(ClientAccept(p,k_2)) ==> event(ServerSend(p,k_2)) is true.
+
+Query not event(ClientAccept(p,k_2)) in process 1.
+goal reachable: event(ClientAccept(pk(skA[]),k_2))
+RESULT not event(ClientAccept(p,k_2)) is false.
+
+Verification summary:
+Query not attacker(s[]) is true.
+Query event(ClientAccept(p,k_2)) ==> event(ServerSend(p,k_2)) is true.
+Query not event(ClientAccept(p,k_2)) is false.
